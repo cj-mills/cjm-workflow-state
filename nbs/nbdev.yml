@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "cjm-workflow-state"
+  site-url: "https://cj-mills.github.io/cjm-workflow-state"
+  description: "SQLite-backed workflow state persistence and undo history for multi-step human-in-the-loop workflows."
+  repo-branch: main
+  repo-url: "https://github.com/cj-mills/cjm-workflow-state"

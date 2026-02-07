@@ -8,3 +8,158 @@
 ``` bash
 pip install cjm_workflow_state
 ```
+
+## Project Structure
+
+    nbs/
+    ├── history.ipynb     # Generic undo history stack for workflow operations.
+    └── state_store.ipynb # SQLite-backed workflow state storage for persistence across restarts.
+
+Total: 2 notebooks
+
+## Module Dependencies
+
+``` mermaid
+graph LR
+    history[history<br/>History]
+    state_store[state_store<br/>State Store]
+```
+
+No cross-module dependencies detected.
+
+## CLI Reference
+
+No CLI commands found in this project.
+
+## Module Overview
+
+Detailed documentation for each module in the project:
+
+### History (`history.ipynb`)
+
+> Generic undo history stack for workflow operations.
+
+#### Import
+
+``` python
+from cjm_workflow_state.history import (
+    DEFAULT_MAX_HISTORY_DEPTH,
+    push_history,
+    pop_history
+)
+```
+
+#### Functions
+
+``` python
+def push_history(
+    history: List[Dict[str, Any]],  # Current history stack
+    snapshot: Dict[str, Any],  # State snapshot to save
+    max_depth: int = DEFAULT_MAX_HISTORY_DEPTH,  # Maximum history depth
+) -> List[Dict[str, Any]]:  # Updated history stack
+    "Push a state snapshot onto the history stack, enforcing max depth."
+```
+
+``` python
+def pop_history(
+    history: List[Dict[str, Any]],  # Current history stack
+) -> Optional[Tuple[Dict[str, Any], List[Dict[str, Any]]]]:  # (snapshot, updated_history) or None
+    "Pop the most recent snapshot from the history stack."
+```
+
+#### Variables
+
+``` python
+DEFAULT_MAX_HISTORY_DEPTH = 50
+```
+
+### State Store (`state_store.ipynb`)
+
+> SQLite-backed workflow state storage for persistence across restarts.
+
+#### Import
+
+``` python
+from cjm_workflow_state.state_store import (
+    SQLiteWorkflowStateStore
+)
+```
+
+#### Classes
+
+``` python
+class SQLiteWorkflowStateStore:
+    def __init__(
+        self,
+        db_path: Path  # Path to SQLite database file
+    )
+    "SQLite-backed workflow state storage for persistence across restarts."
+    
+    def __init__(
+            self,
+            db_path: Path  # Path to SQLite database file
+        )
+        "Initialize the state store and create tables if needed."
+    
+    def get_current_step(
+            self,
+            flow_id: str,  # Workflow identifier
+            session_id: str  # Session identifier string
+        ) -> Optional[str]:  # Current step ID or None
+        "Get current step ID for a workflow."
+    
+    def set_current_step(
+            self,
+            flow_id: str,  # Workflow identifier
+            session_id: str,  # Session identifier string
+            step_id: str  # Step ID to set as current
+        ) -> None
+        "Set current step ID for a workflow."
+    
+    def get_state(
+            self,
+            flow_id: str,  # Workflow identifier
+            session_id: str  # Session identifier string
+        ) -> Dict[str, Any]:  # Workflow state dictionary
+        "Get all workflow state."
+    
+    def update_state(
+            self,
+            flow_id: str,  # Workflow identifier
+            session_id: str,  # Session identifier string
+            updates: Dict[str, Any]  # State updates to merge
+        ) -> None
+        "Update workflow state by merging new values."
+    
+    def clear_state(
+            self,
+            flow_id: str,  # Workflow identifier
+            session_id: str  # Session identifier string
+        ) -> None
+        "Clear all workflow state."
+    
+    def get_step_state(
+            self,
+            flow_id: str,  # Workflow identifier
+            session_id: str,  # Session identifier string
+            step_id: str  # Step identifier
+        ) -> Dict[str, Any]:  # Step-specific state dictionary
+        "Get state for a specific step."
+    
+    def update_step_state(
+            self,
+            flow_id: str,  # Workflow identifier
+            session_id: str,  # Session identifier string
+            step_id: str,  # Step identifier
+            updates: Dict[str, Any]  # Step-specific state updates
+        ) -> None
+        "Update state for a specific step."
+    
+    def clear_step_state(
+            self,
+            flow_id: str,  # Workflow identifier
+            session_id: str,  # Session identifier string
+            step_id: str  # Step identifier
+        ) -> None
+        "Clear state for a specific step."
+```

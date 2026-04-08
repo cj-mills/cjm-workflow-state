@@ -81,6 +81,7 @@ DEFAULT_MAX_HISTORY_DEPTH = 50
 
 ``` python
 from cjm_workflow_state.state_store import (
+    SessionSummary,
     SQLiteWorkflowStateStore
 )
 ```
@@ -88,78 +89,137 @@ from cjm_workflow_state.state_store import (
 #### Classes
 
 ``` python
+@dataclass
+class SessionSummary:
+    "Lightweight metadata for a single workflow session."
+    
+    flow_id: str  # Workflow identifier
+    session_id: str  # Session identifier
+    label: Optional[str]  # Human-readable label, or None to defer to a generator
+    current_step: Optional[str]  # Current StepFlow step ID, or None
+    created_at: str  # ISO timestamp string from SQLite CURRENT_TIMESTAMP
+    updated_at: str  # ISO timestamp string from SQLite CURRENT_TIMESTAMP
+    state_size_bytes: int  # Length of state_json column — cheap size hint
+```
+
+``` python
 class SQLiteWorkflowStateStore:
     def __init__(
         self,
-        db_path: Path  # Path to SQLite database file
+        db_path:Path # Path to SQLite database file
     )
     "SQLite-backed workflow state storage for persistence across restarts."
     
     def __init__(
             self,
-            db_path: Path  # Path to SQLite database file
+            db_path:Path # Path to SQLite database file
         )
-        "Initialize the state store and create tables if needed."
+        "Initialize the state store and create or migrate the schema."
     
     def get_current_step(
             self,
-            flow_id: str,  # Workflow identifier
-            session_id: str  # Session identifier string
-        ) -> Optional[str]:  # Current step ID or None
-        "Get current step ID for a workflow."
+            flow_id:str, # Workflow identifier
+            session_id:str # Session identifier string
+        ) -> Optional[str]: # Current step ID, or None if no row exists
+        "Get the current step ID for a session."
     
     def set_current_step(
             self,
-            flow_id: str,  # Workflow identifier
-            session_id: str,  # Session identifier string
-            step_id: str  # Step ID to set as current
+            flow_id:str, # Workflow identifier
+            session_id:str, # Session identifier string
+            step_id:str # Step ID to set as current
         ) -> None
-        "Set current step ID for a workflow."
+        "Set the current step ID for a session, upserting the row if needed."
     
     def get_state(
             self,
-            flow_id: str,  # Workflow identifier
-            session_id: str  # Session identifier string
-        ) -> Dict[str, Any]:  # Workflow state dictionary
-        "Get all workflow state."
+            flow_id:str, # Workflow identifier
+            session_id:str # Session identifier string
+        ) -> Dict[str, Any]: # Full session state dictionary
+        "Get the full state dictionary for a session."
     
     def update_state(
             self,
-            flow_id: str,  # Workflow identifier
-            session_id: str,  # Session identifier string
-            updates: Dict[str, Any]  # State updates to merge
+            flow_id:str, # Workflow identifier
+            session_id:str, # Session identifier string
+            updates:Dict[str, Any] # Top-level state keys to merge in
         ) -> None
-        "Update workflow state by merging new values."
+        "Merge updates into the session state, upserting the row if needed."
     
     def clear_state(
             self,
-            flow_id: str,  # Workflow identifier
-            session_id: str  # Session identifier string
+            flow_id:str, # Workflow identifier
+            session_id:str # Session identifier string
         ) -> None
-        "Clear all workflow state."
+        "Delete the session row entirely. Idempotent."
     
     def get_step_state(
             self,
-            flow_id: str,  # Workflow identifier
-            session_id: str,  # Session identifier string
-            step_id: str  # Step identifier
-        ) -> Dict[str, Any]:  # Step-specific state dictionary
-        "Get state for a specific step."
+            flow_id:str, # Workflow identifier
+            session_id:str, # Session identifier string
+            step_id:str # Step identifier
+        ) -> Dict[str, Any]: # State dictionary for that step
+        "Get the state dictionary for a specific step."
     
     def update_step_state(
             self,
-            flow_id: str,  # Workflow identifier
-            session_id: str,  # Session identifier string
-            step_id: str,  # Step identifier
-            updates: Dict[str, Any]  # Step-specific state updates
+            flow_id:str, # Workflow identifier
+            session_id:str, # Session identifier string
+            step_id:str, # Step identifier
+            updates:Dict[str, Any] # Step state keys to merge in
         ) -> None
-        "Update state for a specific step."
+        "Merge updates into a specific step's state."
     
     def clear_step_state(
             self,
-            flow_id: str,  # Workflow identifier
-            session_id: str,  # Session identifier string
-            step_id: str  # Step identifier
+            flow_id:str, # Workflow identifier
+            session_id:str, # Session identifier string
+            step_id:str # Step identifier
         ) -> None
-        "Clear state for a specific step."
+        "Remove a specific step's state while preserving the rest of the session."
+    
+    def create_session(
+            self,
+            flow_id:str, # Workflow identifier
+            session_id:Optional[str]=None, # Pre-chosen session ID (auto-generated UUID4 if None)
+            label:Optional[str]=None # Optional human-readable label
+        ) -> str: # The created session_id
+        "Insert a new empty session row and return its session_id."
+    
+    def session_exists(
+            self,
+            flow_id:str, # Workflow identifier
+            session_id:str # Session identifier string
+        ) -> bool: # True if a row exists for the given session
+        "Check whether a session row exists."
+    
+    def get_session_summary(
+            self,
+            flow_id:str, # Workflow identifier
+            session_id:str # Session identifier string
+        ) -> Optional[SessionSummary]: # Session metadata, or None if not found
+        "Return lightweight metadata for a single session."
+    
+    def list_sessions(
+            self,
+            flow_id:str, # Workflow identifier to list sessions for
+            order_by:str="updated_at", # Sort column: "updated_at", "created_at", or "label"
+            descending:bool=True # Sort direction
+        ) -> List[SessionSummary]: # All sessions for this flow, ordered
+        "List all sessions for a flow as lightweight SessionSummary records."
+    
+    def set_session_label(
+            self,
+            flow_id:str, # Workflow identifier
+            session_id:str, # Session identifier string
+            label:Optional[str] # New label, or None to clear
+        ) -> None
+        "Update the session label. No-op if the session does not exist."
+    
+    def delete_session(
+            self,
+            flow_id:str, # Workflow identifier
+            session_id:str # Session identifier string
+        ) -> None
+        "Delete a session row. Alias of `clear_state` for symmetry with the session API."
 ```

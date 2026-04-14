@@ -1,0 +1,122 @@
+[
+  {
+    "objectID": "history.html#history-operations",
+    "href": "history.html#history-operations",
+    "title": "History",
+    "section": "History Operations",
+    "text": "History Operations\nPure functions for managing an undo history stack. The stack stores opaque snapshots — each workflow decides what to include in a snapshot (e.g., segments and focused index for a card stack, relations and selected node for a graph editor).\n\n\npush_history\n\ndef push_history(\n    history:List, # Current history stack\n    snapshot:Dict, # State snapshot to save\n    max_depth:int=50, # Maximum history depth\n)-&gt;List: # Updated history stack\n\nPush a state snapshot onto the history stack, enforcing max depth.\n\n\n\npop_history\n\ndef pop_history(\n    history:List, # Current history stack\n)-&gt;Optional: # (snapshot, updated_history) or None\n\nPop the most recent snapshot from the history stack.",
+    "crumbs": [
+      "History"
+    ]
+  },
+  {
+    "objectID": "history.html#tests",
+    "href": "history.html#tests",
+    "title": "History",
+    "section": "Tests",
+    "text": "Tests\n\n# Push to empty history\nh = push_history([], {\"items\": [\"a\"], \"focus\": 0})\nassert len(h) == 1\nassert h[0][\"items\"] == [\"a\"]\nassert h[0][\"focus\"] == 0\n\n# Push preserves existing entries\nh = push_history(h, {\"items\": [\"a\", \"b\"], \"focus\": 1})\nassert len(h) == 2\nassert h[1][\"focus\"] == 1\n\n# Max depth enforcement\nh = push_history([], {\"v\": \"old\"}, max_depth=2)\nh = push_history(h, {\"v\": \"mid\"}, max_depth=2)\nh = push_history(h, {\"v\": \"new\"}, max_depth=2)\nassert len(h) == 2\nassert h[0][\"v\"] == \"mid\"\nassert h[1][\"v\"] == \"new\"\n\n# Original list is not mutated\noriginal = [{\"v\": \"x\"}]\nresult = push_history(original, {\"v\": \"y\"})\nassert len(original) == 1\nassert len(result) == 2\n\nprint(\"push_history tests passed!\")\n\npush_history tests passed!\n\n\n\n# Pop from empty history returns None\nassert pop_history([]) is None\n\n# Pop returns last snapshot and updated history\nh = [\n    {\"items\": [\"first\"], \"focus\": 0},\n    {\"items\": [\"second\"], \"focus\": 1},\n]\nsnapshot, remaining = pop_history(h)\nassert snapshot[\"items\"] == [\"second\"]\nassert snapshot[\"focus\"] == 1\nassert len(remaining) == 1\n\n# Original list is not mutated\noriginal = [{\"v\": \"x\"}]\nsnapshot, remaining = pop_history(original)\nassert len(original) == 1\nassert snapshot[\"v\"] == \"x\"\nassert len(remaining) == 0\n\n# Arbitrary snapshot shapes work\nh = push_history([], {\"relations\": [{\"a\": \"b\"}], \"selected_node\": \"n1\", \"extra\": 42})\nsnapshot, remaining = pop_history(h)\nassert snapshot[\"relations\"] == [{\"a\": \"b\"}]\nassert snapshot[\"selected_node\"] == \"n1\"\nassert snapshot[\"extra\"] == 42\n\nprint(\"pop_history tests passed!\")\n\npop_history tests passed!",
+    "crumbs": [
+      "History"
+    ]
+  },
+  {
+    "objectID": "state_store.html",
+    "href": "state_store.html",
+    "title": "State Store",
+    "section": "",
+    "text": "Lightweight metadata for a workflow session, suitable for listing sessions in a management UI without loading full state blobs.\n\n\n\n\ndef SessionSummary(\n    flow_id:str, session_id:str, label:Optional, current_step:Optional, created_at:str, updated_at:str,\n    state_size_bytes:int\n)-&gt;None:\n\nLightweight metadata for a single workflow session.",
+    "crumbs": [
+      "State Store"
+    ]
+  },
+  {
+    "objectID": "state_store.html#sessionsummary",
+    "href": "state_store.html#sessionsummary",
+    "title": "State Store",
+    "section": "",
+    "text": "Lightweight metadata for a workflow session, suitable for listing sessions in a management UI without loading full state blobs.\n\n\n\n\ndef SessionSummary(\n    flow_id:str, session_id:str, label:Optional, current_step:Optional, created_at:str, updated_at:str,\n    state_size_bytes:int\n)-&gt;None:\n\nLightweight metadata for a single workflow session.",
+    "crumbs": [
+      "State Store"
+    ]
+  },
+  {
+    "objectID": "state_store.html#sqliteworkflowstatestore",
+    "href": "state_store.html#sqliteworkflowstatestore",
+    "title": "State Store",
+    "section": "SQLiteWorkflowStateStore",
+    "text": "SQLiteWorkflowStateStore\nSQLite-backed implementation of workflow state storage. Accepts a plain session_id: str for all operations — no web framework dependency.\nKey features:\n\nState persists across application restarts\nSupports step-specific state storage for progress restoration\nUses JSON serialization for complex state objects\nComposite key pattern: flow_id:session_id for multi-workflow support\n\n\n\nSQLiteWorkflowStateStore\n\ndef SQLiteWorkflowStateStore(\n    db_path:Path, # Path to SQLite database file\n):\n\nSQLite-backed workflow state storage for persistence across restarts.",
+    "crumbs": [
+      "State Store"
+    ]
+  },
+  {
+    "objectID": "state_store.html#tests",
+    "href": "state_store.html#tests",
+    "title": "State Store",
+    "section": "Tests",
+    "text": "Tests\n\nimport tempfile, os\n\n# Create a temporary database for testing\n_tmp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)\n_tmp_path = _tmp.name\n_tmp.close()\nstore = SQLiteWorkflowStateStore(_tmp_path)\n\n\n# Step tracking\nassert store.get_current_step(\"flow1\", \"sess1\") is None\n\nstore.set_current_step(\"flow1\", \"sess1\", \"selection\")\nassert store.get_current_step(\"flow1\", \"sess1\") == \"selection\"\n\nstore.set_current_step(\"flow1\", \"sess1\", \"decomposition\")\nassert store.get_current_step(\"flow1\", \"sess1\") == \"decomposition\"\n\n# Different sessions are independent\nassert store.get_current_step(\"flow1\", \"sess2\") is None\n\nprint(\"Step tracking tests passed!\")\n\nStep tracking tests passed!\n\n\n\n# State CRUD\nassert store.get_state(\"flow1\", \"sess1\") == {}\n\nstore.update_state(\"flow1\", \"sess1\", {\"count\": 5, \"name\": \"test\"})\nstate = store.get_state(\"flow1\", \"sess1\")\nassert state[\"count\"] == 5\nassert state[\"name\"] == \"test\"\n\n# Merge semantics\nstore.update_state(\"flow1\", \"sess1\", {\"count\": 10})\nstate = store.get_state(\"flow1\", \"sess1\")\nassert state[\"count\"] == 10\nassert state[\"name\"] == \"test\"  # preserved\n\n# Clear\nstore.clear_state(\"flow1\", \"sess1\")\nassert store.get_state(\"flow1\", \"sess1\") == {}\n\nprint(\"State CRUD tests passed!\")\n\nState CRUD tests passed!\n\n\n\n# Step-specific state\nassert store.get_step_state(\"flow1\", \"sess1\", \"selection\") == {}\n\nstore.update_step_state(\"flow1\", \"sess1\", \"selection\", {\"sources\": [\"a\", \"b\"]})\nstep_state = store.get_step_state(\"flow1\", \"sess1\", \"selection\")\nassert step_state[\"sources\"] == [\"a\", \"b\"]\n\n# Different steps are independent\nstore.update_step_state(\"flow1\", \"sess1\", \"decomposition\", {\"segments\": [1, 2, 3]})\nassert store.get_step_state(\"flow1\", \"sess1\", \"selection\")[\"sources\"] == [\"a\", \"b\"]\nassert store.get_step_state(\"flow1\", \"sess1\", \"decomposition\")[\"segments\"] == [1, 2, 3]\n\n# Clear step state\nstore.clear_step_state(\"flow1\", \"sess1\", \"selection\")\nassert store.get_step_state(\"flow1\", \"sess1\", \"selection\") == {}\nassert store.get_step_state(\"flow1\", \"sess1\", \"decomposition\")[\"segments\"] == [1, 2, 3]  # preserved\n\nprint(\"Step-specific state tests passed!\")\n\nStep-specific state tests passed!\n\n\n\n# Flow and session isolation\nstore.clear_state(\"flow1\", \"sess1\")\nstore.update_state(\"flow1\", \"sess1\", {\"flow\": 1})\nstore.update_state(\"flow2\", \"sess1\", {\"flow\": 2})\nstore.update_state(\"flow1\", \"sess2\", {\"flow\": 1, \"session\": 2})\n\nassert store.get_state(\"flow1\", \"sess1\")[\"flow\"] == 1\nassert store.get_state(\"flow2\", \"sess1\")[\"flow\"] == 2\nassert store.get_state(\"flow1\", \"sess2\")[\"session\"] == 2\n\nprint(\"Isolation tests passed!\")\n\nIsolation tests passed!\n\n\n\n# Migration: new install already has the label column.\n# (Re-initializing should be idempotent — safe to call twice.)\nstore._init_db()\nwith store._get_connection() as _c:\n    _cols = {r[1] for r in _c.execute(\"PRAGMA table_info(workflow_state)\").fetchall()}\nassert \"label\" in _cols, f\"label column missing: {_cols}\"\n\nprint(\"Migration (fresh install) tests passed!\")\n\n\n# Migration: existing pre-label DB gets upgraded in place and preserves data.\n_legacy = tempfile.NamedTemporaryFile(suffix='.db', delete=False)\n_legacy_path = _legacy.name\n_legacy.close()\n\n# Hand-create the OLD schema (no label column) and insert a row.\n_conn = sqlite3.connect(_legacy_path)\n_conn.execute(\"\"\"\n    CREATE TABLE workflow_state (\n        flow_session_key TEXT PRIMARY KEY,\n        current_step TEXT,\n        state_json TEXT DEFAULT '{}',\n        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n    )\n\"\"\")\n_conn.execute(\n    \"INSERT INTO workflow_state (flow_session_key, current_step, state_json) VALUES (?, ?, ?)\",\n    (\"flowL:legacy1\", \"selection\", '{\"x\": 1}')\n)\n_conn.commit()\n_conn.close()\n\n# Open with the new store — should migrate in place.\nlegacy_store = SQLiteWorkflowStateStore(_legacy_path)\n\n# Legacy row still readable.\nassert legacy_store.get_state(\"flowL\", \"legacy1\") == {\"x\": 1}\nassert legacy_store.get_current_step(\"flowL\", \"legacy1\") == \"selection\"\n\n# Label column was added and legacy row gets NULL label.\nsummary = legacy_store.get_session_summary(\"flowL\", \"legacy1\")\nassert summary is not None\nassert summary.label is None\nassert summary.current_step == \"selection\"\nassert summary.state_size_bytes &gt; 0\n\n# list_sessions surfaces the legacy row.\nsessions = legacy_store.list_sessions(\"flowL\")\nassert len(sessions) == 1\nassert sessions[0].session_id == \"legacy1\"\n\nos.unlink(_legacy_path)\nprint(\"Migration (existing DB) tests passed!\")\n\n\n# create_session: auto-UUID, explicit ID, and with label.\nstore.clear_state(\"flowS\", \"s1\")  # ensure clean slate\n\nnew_id = store.create_session(\"flowS\")\nassert isinstance(new_id, str) and len(new_id) == 36  # UUID4 string form\nassert store.session_exists(\"flowS\", new_id)\n\n# Explicit ID.\nstore.create_session(\"flowS\", session_id=\"s1\", label=\"hand-named\")\nassert store.session_exists(\"flowS\", \"s1\")\n\nsummary = store.get_session_summary(\"flowS\", \"s1\")\nassert summary is not None\nassert summary.label == \"hand-named\"\nassert summary.current_step is None  # not set yet\nassert summary.state_size_bytes &gt;= 2  # at least '{}' default\n\n# session_exists is False for a missing session.\nassert not store.session_exists(\"flowS\", \"nope\")\n\n# Duplicate create_session raises (INSERT conflict).\nimport sqlite3 as _sqlite3\ntry:\n    store.create_session(\"flowS\", session_id=\"s1\")\n    assert False, \"expected IntegrityError on duplicate create_session\"\nexcept _sqlite3.IntegrityError:\n    pass\n\nprint(\"create_session / session_exists tests passed!\")\n\ncreate_session / session_exists tests passed!\n\n\n\n# list_sessions: multiple sessions, ordering, and scoping by flow_id.\n# Start from a clean flow to avoid interference with earlier tests.\nfor _sid in [s.session_id for s in store.list_sessions(\"flowLS\")]:\n    store.delete_session(\"flowLS\", _sid)\n\n# Create three sessions with controlled updated_at ordering.\nimport time\nstore.create_session(\"flowLS\", session_id=\"alpha\", label=\"Alpha\")\ntime.sleep(0.01)\nstore.create_session(\"flowLS\", session_id=\"beta\", label=\"Beta\")\ntime.sleep(0.01)\nstore.create_session(\"flowLS\", session_id=\"gamma\", label=\"Gamma\")\n\n# Default ordering: updated_at DESC → gamma, beta, alpha.\nsessions = store.list_sessions(\"flowLS\")\nassert [s.session_id for s in sessions] == [\"gamma\", \"beta\", \"alpha\"], \\\n    f\"unexpected order: {[s.session_id for s in sessions]}\"\n\n# Ascending order.\nsessions_asc = store.list_sessions(\"flowLS\", descending=False)\nassert [s.session_id for s in sessions_asc] == [\"alpha\", \"beta\", \"gamma\"]\n\n# Order by label.\nsessions_by_label = store.list_sessions(\"flowLS\", order_by=\"label\", descending=False)\nassert [s.label for s in sessions_by_label] == [\"Alpha\", \"Beta\", \"Gamma\"]\n\n# Listing a different flow returns none.\nassert store.list_sessions(\"flowLS_other\") == []\n\n# Invalid order_by raises.\ntry:\n    store.list_sessions(\"flowLS\", order_by=\"state_json\")\n    assert False, \"expected ValueError on invalid order_by\"\nexcept ValueError:\n    pass\n\nprint(\"list_sessions tests passed!\")\n\nlist_sessions tests passed!\n\n\n\n# set_session_label: update and clear.\nstore.create_session(\"flowR\", session_id=\"r1\", label=\"Initial\")\nassert store.get_session_summary(\"flowR\", \"r1\").label == \"Initial\"\n\nstore.set_session_label(\"flowR\", \"r1\", \"Renamed\")\nassert store.get_session_summary(\"flowR\", \"r1\").label == \"Renamed\"\n\n# Clear the label.\nstore.set_session_label(\"flowR\", \"r1\", None)\nassert store.get_session_summary(\"flowR\", \"r1\").label is None\n\n# Setting a label on a nonexistent session is a no-op (doesn't raise, doesn't create row).\nstore.set_session_label(\"flowR\", \"does_not_exist\", \"Ghost\")\nassert not store.session_exists(\"flowR\", \"does_not_exist\")\n\nprint(\"set_session_label tests passed!\")\n\n\n# delete_session: removes the row and is idempotent.\nstore.create_session(\"flowD\", session_id=\"d1\", label=\"Doomed\")\nstore.update_state(\"flowD\", \"d1\", {\"payload\": [1, 2, 3]})\nassert store.session_exists(\"flowD\", \"d1\")\nassert store.get_state(\"flowD\", \"d1\")[\"payload\"] == [1, 2, 3]\n\nstore.delete_session(\"flowD\", \"d1\")\nassert not store.session_exists(\"flowD\", \"d1\")\nassert store.get_state(\"flowD\", \"d1\") == {}\nassert store.get_session_summary(\"flowD\", \"d1\") is None\n\n# Idempotent: deleting a nonexistent session does not raise.\nstore.delete_session(\"flowD\", \"d1\")\nstore.delete_session(\"flowD\", \"never_existed\")\n\nprint(\"delete_session tests passed!\")\n\n\n# get_session_summary: integrates current_step, state size, and existing state.\nstore.create_session(\"flowM\", session_id=\"m1\", label=\"Meta\")\nstore.set_current_step(\"flowM\", \"m1\", \"decomposition\")\nstore.update_state(\"flowM\", \"m1\", {\"segments\": list(range(50))})\n\nsummary = store.get_session_summary(\"flowM\", \"m1\")\nassert summary is not None\nassert summary.flow_id == \"flowM\"\nassert summary.session_id == \"m1\"\nassert summary.label == \"Meta\"\nassert summary.current_step == \"decomposition\"\nassert summary.state_size_bytes &gt; 50  # serialized list takes some bytes\nassert summary.created_at is not None\nassert summary.updated_at is not None\n\n# Missing session returns None.\nassert store.get_session_summary(\"flowM\", \"missing\") is None\n\nprint(\"get_session_summary tests passed!\")\n\n\n# Cleanup\nos.unlink(_tmp_path)",
+    "crumbs": [
+      "State Store"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "cjm-workflow-state",
+    "section": "",
+    "text": "pip install cjm_workflow_state",
+    "crumbs": [
+      "cjm-workflow-state"
+    ]
+  },
+  {
+    "objectID": "index.html#install",
+    "href": "index.html#install",
+    "title": "cjm-workflow-state",
+    "section": "",
+    "text": "pip install cjm_workflow_state",
+    "crumbs": [
+      "cjm-workflow-state"
+    ]
+  },
+  {
+    "objectID": "index.html#project-structure",
+    "href": "index.html#project-structure",
+    "title": "cjm-workflow-state",
+    "section": "Project Structure",
+    "text": "Project Structure\nnbs/\n├── history.ipynb     # Generic undo history stack for workflow operations.\n└── state_store.ipynb # SQLite-backed workflow state storage for persistence across restarts.\nTotal: 2 notebooks",
+    "crumbs": [
+      "cjm-workflow-state"
+    ]
+  },
+  {
+    "objectID": "index.html#module-dependencies",
+    "href": "index.html#module-dependencies",
+    "title": "cjm-workflow-state",
+    "section": "Module Dependencies",
+    "text": "Module Dependencies\ngraph LR\n    history[history&lt;br/&gt;History]\n    state_store[state_store&lt;br/&gt;State Store]\n\nNo cross-module dependencies detected.",
+    "crumbs": [
+      "cjm-workflow-state"
+    ]
+  },
+  {
+    "objectID": "index.html#cli-reference",
+    "href": "index.html#cli-reference",
+    "title": "cjm-workflow-state",
+    "section": "CLI Reference",
+    "text": "CLI Reference\nNo CLI commands found in this project.",
+    "crumbs": [
+      "cjm-workflow-state"
+    ]
+  },
+  {
+    "objectID": "index.html#module-overview",
+    "href": "index.html#module-overview",
+    "title": "cjm-workflow-state",
+    "section": "Module Overview",
+    "text": "Module Overview\nDetailed documentation for each module in the project:\n\nHistory (history.ipynb)\n\nGeneric undo history stack for workflow operations.\n\n\nImport\nfrom cjm_workflow_state.history import (\n    DEFAULT_MAX_HISTORY_DEPTH,\n    push_history,\n    pop_history\n)\n\n\nFunctions\ndef push_history(\n    history: List[Dict[str, Any]],  # Current history stack\n    snapshot: Dict[str, Any],  # State snapshot to save\n    max_depth: int = DEFAULT_MAX_HISTORY_DEPTH,  # Maximum history depth\n) -&gt; List[Dict[str, Any]]:  # Updated history stack\n    \"Push a state snapshot onto the history stack, enforcing max depth.\"\ndef pop_history(\n    history: List[Dict[str, Any]],  # Current history stack\n) -&gt; Optional[Tuple[Dict[str, Any], List[Dict[str, Any]]]]:  # (snapshot, updated_history) or None\n    \"Pop the most recent snapshot from the history stack.\"\n\n\nVariables\nDEFAULT_MAX_HISTORY_DEPTH = 50\n\n\n\nState Store (state_store.ipynb)\n\nSQLite-backed workflow state storage for persistence across restarts.\n\n\nImport\nfrom cjm_workflow_state.state_store import (\n    SessionSummary,\n    SQLiteWorkflowStateStore\n)\n\n\nClasses\n@dataclass\nclass SessionSummary:\n    \"Lightweight metadata for a single workflow session.\"\n    \n    flow_id: str  # Workflow identifier\n    session_id: str  # Session identifier\n    label: Optional[str]  # Human-readable label, or None to defer to a generator\n    current_step: Optional[str]  # Current StepFlow step ID, or None\n    created_at: str  # ISO timestamp string from SQLite CURRENT_TIMESTAMP\n    updated_at: str  # ISO timestamp string from SQLite CURRENT_TIMESTAMP\n    state_size_bytes: int  # Length of state_json column — cheap size hint\nclass SQLiteWorkflowStateStore:\n    def __init__(\n        self,\n        db_path:Path # Path to SQLite database file\n    )\n    \"SQLite-backed workflow state storage for persistence across restarts.\"\n    \n    def __init__(\n            self,\n            db_path:Path # Path to SQLite database file\n        )\n        \"Initialize the state store and create or migrate the schema.\"\n    \n    def get_current_step(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str # Session identifier string\n        ) -&gt; Optional[str]: # Current step ID, or None if no row exists\n        \"Get the current step ID for a session.\"\n    \n    def set_current_step(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str, # Session identifier string\n            step_id:str # Step ID to set as current\n        ) -&gt; None\n        \"Set the current step ID for a session, upserting the row if needed.\"\n    \n    def get_state(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str # Session identifier string\n        ) -&gt; Dict[str, Any]: # Full session state dictionary\n        \"Get the full state dictionary for a session.\"\n    \n    def update_state(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str, # Session identifier string\n            updates:Dict[str, Any] # Top-level state keys to merge in\n        ) -&gt; None\n        \"Merge updates into the session state, upserting the row if needed.\"\n    \n    def clear_state(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str # Session identifier string\n        ) -&gt; None\n        \"Delete the session row entirely. Idempotent.\"\n    \n    def get_step_state(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str, # Session identifier string\n            step_id:str # Step identifier\n        ) -&gt; Dict[str, Any]: # State dictionary for that step\n        \"Get the state dictionary for a specific step.\"\n    \n    def update_step_state(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str, # Session identifier string\n            step_id:str, # Step identifier\n            updates:Dict[str, Any] # Step state keys to merge in\n        ) -&gt; None\n        \"Merge updates into a specific step's state.\"\n    \n    def clear_step_state(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str, # Session identifier string\n            step_id:str # Step identifier\n        ) -&gt; None\n        \"Remove a specific step's state while preserving the rest of the session.\"\n    \n    def create_session(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:Optional[str]=None, # Pre-chosen session ID (auto-generated UUID4 if None)\n            label:Optional[str]=None # Optional human-readable label\n        ) -&gt; str: # The created session_id\n        \"Insert a new empty session row and return its session_id.\"\n    \n    def session_exists(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str # Session identifier string\n        ) -&gt; bool: # True if a row exists for the given session\n        \"Check whether a session row exists.\"\n    \n    def get_session_summary(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str # Session identifier string\n        ) -&gt; Optional[SessionSummary]: # Session metadata, or None if not found\n        \"Return lightweight metadata for a single session.\"\n    \n    def list_sessions(\n            self,\n            flow_id:str, # Workflow identifier to list sessions for\n            order_by:str=\"updated_at\", # Sort column: \"updated_at\", \"created_at\", or \"label\"\n            descending:bool=True # Sort direction\n        ) -&gt; List[SessionSummary]: # All sessions for this flow, ordered\n        \"List all sessions for a flow as lightweight SessionSummary records.\"\n    \n    def set_session_label(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str, # Session identifier string\n            label:Optional[str] # New label, or None to clear\n        ) -&gt; None\n        \"Update the session label. No-op if the session does not exist.\"\n    \n    def delete_session(\n            self,\n            flow_id:str, # Workflow identifier\n            session_id:str # Session identifier string\n        ) -&gt; None\n        \"Delete a session row. Alias of `clear_state` for symmetry with the session API.\"",
+    "crumbs": [
+      "cjm-workflow-state"
+    ]
+  }
+]

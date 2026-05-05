@@ -25,6 +25,6 @@ cjm_workflow_state = "cjm_workflow_state._modidx:d"
 version = {attr = "cjm_workflow_state.__version__"}
 
 [tool.setuptools.packages.find]
-include = ["cjm_workflow_state"]
+include = ["cjm_workflow_state*"]
 
 [tool.nbdev]
